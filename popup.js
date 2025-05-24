@@ -17,11 +17,11 @@ function initDB() {
             const db = event.target.result;
             if (!db.objectStoreNames.contains("schedules")) {
                 const store = db.createObjectStore("schedules", { keyPath: "id" });
-                store.createIndex("date", "date", { unique: false });
+                store.createIndex("due_date", "due_date", { unique: false });
             } else {
                 const store = event.target.transaction.objectStore("schedules");
                 if (!store.indexNames.contains("date")) {
-                    store.createIndex("date", "date", { unique: false });
+                    store.createIndex("due_date", "due_date", { unique: false });
                 }
             }
         };
@@ -34,18 +34,19 @@ async function getMonthlySchedules(year, month) {
     const db = await initDB();
     const tx = db.transaction("schedules", "readonly");
     const store = tx.objectStore("schedules");
-    const index = store.index("date");
+    const index = store.index("due_date");
 
     return new Promise((resolve, reject) => {
         const request = index.getAll();
         const result = {};
 
+        // 수정 후
         request.onsuccess = () => {
             request.result.forEach(event => {
-                const [y, m] = event.date.split('-');
+                const [y, m] = event.due_date.split('-');
                 if (parseInt(y) === year && parseInt(m) === month) {
-                    if (!result[event.date]) result[event.date] = [];
-                    result[event.date].push(event);
+                    if (!result[event.due_date]) result[event.due_date] = [];
+                    result[event.due_date].push(event);
                 }
             });
             resolve(result);
@@ -136,6 +137,7 @@ function updateTodoList() {
                         ${event.title}
                         <span class="type-badge" style="border-color: ${color}; color: ${color};">${event.type || '일반'}</span>
                     </div>
+                    <div class="todo-time">마감: ${event.due_date}</div>
                     <button class="delete-btn" data-id="${event.id}">🗑</button>
                 </div>
             `;
@@ -149,17 +151,17 @@ function updateTodoList() {
 
                 if (!event) return;
 
-                if (event.BB_id !== null && event.BB_id !== undefined) {
+                if (event.id) {
                     // 외부 일정이면 서버에도 삭제 요청
                     try {
                         await fetch('https://example.com/api/schedule/delete', {
                             method: 'DELETE',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ bbId: event.BB_id })
+                            body: JSON.stringify({ bbId: event.id })
                         });
-                        console.log(`🛰 외부 일정 BB_id ${event.BB_id} 서버에 전송 완료`);
+                        console.log(`🛰 외부 일정 id ${event.id} 서버에 전송 완료`);
                     } catch (err) {
-                        console.error('❗ 서버에 BB_id 삭제 요청 실패:', err);
+                        console.error('❗ 서버에 삭제 요청 실패:', err);
                     }
                 }
 
@@ -246,6 +248,14 @@ function getColorForType(type) {
     return color;
 }
 
+function getAuthToken() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['authToken'], (result) => {
+            resolve(result.authToken || null);
+        });
+    });
+}
+
 // 크롤링 요청
 async function handleRefreshEventClick() {
     const token = await getAuthToken(); // chrome.storage.local에서 토큰 가져오기 함수
@@ -320,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('prevMonth')?.addEventListener('click', previousMonth);
         document.getElementById('nextMonth')?.addEventListener('click', nextMonth);
         document.getElementById('addEventBtn')?.addEventListener('click', handleAddEventClick);
-        document.getElementById('crawlBtn')?.addEventListener('click', handleRefreshEventClick);
+        document.getElementById('refreshBtn')?.addEventListener('click', handleRefreshEventClick);
 
         // FAB 버튼 이벤트
         document.getElementById('chatFab').addEventListener('click', openChatScreen);
