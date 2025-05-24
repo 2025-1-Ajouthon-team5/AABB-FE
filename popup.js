@@ -34,10 +34,8 @@ function openChatScreen() {
                 return;
             }
             if (response && response.success) {
-                // 약간의 지연 후 창 닫기 (팝업 전환 완료 대기)
-                setTimeout(() => {
-                    window.close();
-                }, 100);
+                // 팝업 창 변경
+                window.location.href = 'chatPopup.html';
             }
         });
     });
