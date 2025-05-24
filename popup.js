@@ -1,3 +1,17 @@
+document.addEventListener('DOMContentLoaded', () => {
+  chrome.storage.local.get('authToken', (result) => {
+    if (result.authToken) {
+      // 🔓 토큰이 있으면 캘린더 렌더링
+      console.log('✅ 토큰 있음 → 캘린더 렌더링');
+      renderCalendar();  // 또는 main 화면 렌더링
+    } else {
+      // 🔐 토큰 없으면 로그인 페이지로 전환
+      console.log('🔓 토큰 없음 → 로그인 화면 이동');
+      window.location.href = 'login.html';
+    }
+  });
+});
+
 let currentDate = new Date();
 let selectedDate = new Date();
 
