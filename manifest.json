@@ -13,5 +13,10 @@
   "content_scripts": [{
     "matches": ["*://eclass2.ajou.ac.kr/ultra/course"],
     "js": ["content.js"]
-  }]
+  },
+  {
+    "matches": ["*://eclass2.ajou.ac.kr/ultra/courses/*/outline"],
+    "js": ["courseDetailCrawler.js"]
+  }
+  ]
 }
