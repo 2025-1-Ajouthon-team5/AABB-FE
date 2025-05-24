@@ -120,7 +120,7 @@ function updateTodoList() {
     document.getElementById('eventCount').textContent = events.length > 0 ? `일정 ${events.length}개` : '일정 없음';
     const todoList = document.getElementById('todoList');
     if (events.length === 0) {
-        todoList.innerHTML = `<div class="no-events"><div class="no-events-icon">📅</div><div>이날은 일정이 없습니다</div></div>`;
+        todoList.innerHTML = `<div class="no-events"><div class="no-events-icon">📅</div><div>이 날은 일정이 없습니다</div></div>`;
     } else {
         todoList.innerHTML = events.map(event => {
             const color = getColorForType(event.type || "일반");
@@ -244,7 +244,7 @@ async function handleRefreshEventClick() {
     const token = await getAuthToken(); // chrome.storage.local에서 토큰 가져오기 함수
 
     try {
-        const res = await fetch('http://localhost:8000/api/crawl', {
+        const res = await fetch('http://172.21.46.69:8000/api/crawl', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
