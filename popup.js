@@ -12,21 +12,27 @@ const dayNames = ["일요일", "월요일", "화요일", "수요일", "목요일
 
 function initDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open("ScheduleDB", 2);
+        const request = indexedDB.open("ScheduleDB", 3); // 버전을 3으로 증가
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            if (!db.objectStoreNames.contains("schedules")) {
-                const store = db.createObjectStore("schedules", { keyPath: "id" });
-                store.createIndex("due_date", "due_date", { unique: false });
-            } else {
-                const store = event.target.transaction.objectStore("schedules");
-                if (!store.indexNames.contains("date")) {
-                    store.createIndex("due_date", "due_date", { unique: false });
-                }
+            
+            // 기존 스토어가 있으면 삭제하고 새로 생성
+            if (db.objectStoreNames.contains("schedules")) {
+                db.deleteObjectStore("schedules");
             }
+            
+            const store = db.createObjectStore("schedules", { keyPath: "id" });
+            store.createIndex("due_date", "due_date", { unique: false });
+            console.log("📊 IndexedDB 스토어 생성 완료");
         };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            console.log("📊 IndexedDB 연결 성공");
+            resolve(request.result);
+        };
+        request.onerror = () => {
+            console.error("📊 IndexedDB 오류:", request.error);
+            reject(request.error);
+        };
     });
 }
 
@@ -261,7 +267,7 @@ async function handleRefreshEventClick() {
     const token = await getAuthToken(); // chrome.storage.local에서 토큰 가져오기 함수
 
     try {
-        const res = await fetch(`http://172.21.46.69:8000/api/crawl/${token}`, {
+        const res = await fetch(`http://172.21.46.69:8000/api/crawl2/${token}`, {
             method: 'GET',
             // headers: {
             //     'Authorization': `Bearer ${token}`
