@@ -1,13 +1,14 @@
 document.getElementById('login-form').addEventListener('submit', async function (e) {
   e.preventDefault();
 
-  const userId = document.getElementById('userId').value.trim();
+  const id = document.getElementById('userId').value.trim();
   const password = document.getElementById('password').value.trim();
 
   const statusEl = document.getElementById('login-status');
   statusEl.textContent = '로그인 중...';
 
   try {
+<<<<<<< HEAD
     // const res = await fetch('http://localhost:8000/api/login', {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
@@ -17,6 +18,15 @@ document.getElementById('login-form').addEventListener('submit', async function 
     // Response 객체를 시뮬레이션
     const res = { ok: true };
     const result = { token: 'fake-token' };
+=======
+    const res = await fetch('http://localhost:8000/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, password })
+    });
+
+    const result = await res.json();
+>>>>>>> main
 
     if (res.ok) {
       statusEl.style.color = 'green';

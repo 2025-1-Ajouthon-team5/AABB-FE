@@ -15,16 +15,16 @@ app.add_middleware(
 )
 
 # 고정된 테스트 계정
-VALID_ID = "hcmhcs0"
-VALID_PW = "m1990201."
+VALID_ID = "a"
+VALID_PW = "a"
 
 class LoginRequest(BaseModel):
-    userId: str
+    id: str
     password: str
 
 @app.post("/api/login")
 async def login_handler(data: LoginRequest):
-    if data.userId == VALID_ID and data.password == VALID_PW:
+    if data.id == VALID_ID and data.password == VALID_PW:
         return JSONResponse(content={"message": "로그인 성공", "token": "mock-jwt-token"}, status_code=200)
     else:
         return JSONResponse(content={"message": "아이디 또는 비밀번호가 잘못되었습니다."}, status_code=401)

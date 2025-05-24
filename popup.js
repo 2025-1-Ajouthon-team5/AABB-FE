@@ -1,6 +1,6 @@
 // popup.js
-let currentDate = new Date("2024-05-01");
-let selectedDate = new Date("2024-05-24");
+let currentDate = new Date("2025-05-01");
+let selectedDate = new Date("2025-05-25");
 let dynamicEvents = {}; // IndexedDB에서 가져온 일정 저장용
 
 const monthNames = [
@@ -152,6 +152,26 @@ function updateTodoList() {
         todoList.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const id = btn.dataset.id;
+                const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const event = (dynamicEvents[dateKey] || []).find(ev => ev.id == id);
+
+                if (!event) return;
+
+                if (event.BB_id !== null && event.BB_id !== undefined) {
+                    // 외부 일정이면 서버에도 삭제 요청
+                    try {
+                        await fetch('https://example.com/api/schedule/delete', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ bbId: event.BB_id })
+                        });
+                        console.log(`🛰 외부 일정 BB_id ${event.BB_id} 서버에 전송 완료`);
+                    } catch (err) {
+                        console.error('❗ 서버에 BB_id 삭제 요청 실패:', err);
+                    }
+                }
+
+                // DB에서도 삭제
                 const db = await initDB();
                 const tx = db.transaction("schedules", "readwrite");
                 tx.objectStore("schedules").delete(id);
@@ -163,22 +183,22 @@ function updateTodoList() {
 }
 
 async function updateEvents(newEvents, isExternal = false) {
-  const db = await initDB();
-  const tx = db.transaction("schedules", "readwrite");
-  const store = tx.objectStore("schedules");
+    const db = await initDB();
+    const tx = db.transaction("schedules", "readwrite");
+    const store = tx.objectStore("schedules");
 
-  for (const [date, events] of Object.entries(newEvents)) {
-    for (const event of events) {
-      const id = `${date}_${event.title}_${event.time}`; // 로컬은 생성
+    for (const [date, events] of Object.entries(newEvents)) {
+        for (const event of events) {
+            const id = `${date}_${event.title}_${event.time}`; // 로컬은 생성
 
-      const BB_id = isExternal ? event.id : null;
+            const BB_id = isExternal ? event.id : null;
 
-      await store.put({ id, date, BB_id, ...event });
+            await store.put({ id, date, BB_id, ...event });
+        }
     }
-  }
 
-  await tx.done;
-  await renderCalendar();
+    await tx.done;
+    await renderCalendar();
 }
 
 function previousMonth() {
@@ -316,46 +336,91 @@ function startCrawling() {
                     }
                 }, 30000);
             } else {
-                showStatusMessage('크롤링 시작에 실패했습니다.', 'error');
-                refreshBtn.classList.remove('loading');
+                window.location.href = 'login.html';
+            }
+        });
+
+        document.getElementById('prevMonth')?.addEventListener('click', previousMonth);
+        document.getElementById('nextMonth')?.addEventListener('click', nextMonth);
+        document.getElementById('addEventBtn')?.addEventListener('click', handleAddEventClick);
+
+        // FAB 버튼 이벤트
+        document.getElementById('chatFab').addEventListener('click', openChatScreen);
+    });
+});
+
+// 채팅 화면으로 전환
+function openChatScreen() {
+    // 현재 일정 데이터를 storage에 저장
+    chrome.storage.local.set({ calendarEvents: dynamicEvents }, () => {
+        // background script를 통해 팝업 변경
+        chrome.runtime.sendMessage({ type: 'SWITCH_TO_CHAT' }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.log('🔴 lastError:', JSON.stringify(chrome.runtime.lastError, null, 2));
+                return;
+            }
+            if (response && response.success) {
+                // 팝업 창 변경
+                window.location.href = 'chatPopup.html';
             }
         });
     });
 }
 
-// 크롤링 결과를 받는 리스너
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === "CRAWL_COMPLETE") {
-        // 크롤링 완료 메시지 처리
-        const refreshBtn = document.getElementById('refreshBtn');
-        refreshBtn.classList.remove('loading');
-        
-        showStatusMessage('크롤링이 완료되었습니다!', 'success');
-        
-        // 수집된 데이터로 캘린더 업데이트
-        if (message.data && message.data.events) {
-            updateEvents(message.data.events);
-        }
+// 상태 메시지를 표시하는 함수
+function showStatusMessage(message, type = 'info') {
+    // 메시지 컨테이너가 없으면 생성
+    let messageContainer = document.getElementById('status-message');
+    if (!messageContainer) {
+        messageContainer = document.createElement('div');
+        messageContainer.id = 'status-message';
+        messageContainer.style.cssText = `
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            z-index: 1000;
+            text-align: center;
+            transition: opacity 0.3s;
+        `;
+        document.body.appendChild(messageContainer);
     }
-    
-    return true;
-});
 
-// 이벤트 리스너 등록
-document.addEventListener('DOMContentLoaded', function() {
-    // 로그인 상태 확인
-  chrome.storage.local.get(['authToken'], function(result) {
-    if (!result.authToken) {
-      // 토큰이 없으면 로그인 페이지로 리디렉션
-      window.location.href = 'loginPopup.html';
-      return;
+    // 메시지 타입에 따른 스타일 설정
+    let backgroundColor = '#f8f9fa';
+    let textColor = '#202124';
+    let borderColor = '#dadce0';
+
+    switch (type) {
+        case 'success':
+            backgroundColor = '#e6f4ea';
+            textColor = '#1e8e3e';
+            borderColor = '#ceead6';
+            break;
+        case 'error':
+            backgroundColor = '#fce8e6';
+            textColor = '#d93025';
+            borderColor = '#f5c2bd';
+            break;
+        case 'warning':
+            backgroundColor = '#fef7e0';
+            textColor = '#ea8600';
+            borderColor = '#fedcb1';
+            break;
     }
-    
-    // 토큰이 있으면 기존 로직 실행
-    document.getElementById('prevMonth').addEventListener('click', previousMonth);
-    document.getElementById('nextMonth').addEventListener('click', nextMonth);
-    document.getElementById('refreshBtn').addEventListener('click', startCrawling);
-    document.getElementById('chatFab').addEventListener('click', openChatScreen);
-    renderCalendar();
-  });
-});
+
+    messageContainer.style.backgroundColor = backgroundColor;
+    messageContainer.style.color = textColor;
+    messageContainer.style.border = `1px solid ${borderColor}`;
+
+    messageContainer.textContent = message;
+    messageContainer.style.opacity = '1';
+
+    // 5초 후 메시지 숨기기
+    setTimeout(() => {
+        messageContainer.style.opacity = '0';
+    }, 5000);
+}
