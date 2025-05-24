@@ -52,3 +52,16 @@ button {
   margin-top: 8px;
   color: red;
 }
+
+.todo-item.type-과제 {
+  border-left: 4px solid #34a853;
+}
+.todo-item.type-퀴즈 {
+  border-left: 4px solid #4285f4;
+}
+.todo-item.type-시험 {
+  border-left: 4px solid #d93025;
+}
+.todo-item.type-일반 {
+  border-left: 4px solid #9e9e9e;
+}

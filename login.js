@@ -1,17 +1,17 @@
 document.getElementById('login-form').addEventListener('submit', async function (e) {
   e.preventDefault();
 
-  const id = document.getElementById('userId').value.trim();
+  const username = document.getElementById('userId').value.trim();
   const password = document.getElementById('password').value.trim();
 
   const statusEl = document.getElementById('login-status');
   statusEl.textContent = '로그인 중...';
 
   try {
-    const res = await fetch('http://localhost:8000/api/login', {
+    const res = await fetch('http://172.21.46.69:8000/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, password })
+      body: JSON.stringify({ username, password })
     });
 
     const result = await res.json();

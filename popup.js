@@ -122,14 +122,17 @@ function updateTodoList() {
     if (events.length === 0) {
         todoList.innerHTML = `<div class="no-events"><div class="no-events-icon">📅</div><div>이날은 일정이 없습니다</div></div>`;
     } else {
-        todoList.innerHTML = events.map(event => `
-      <div class="todo-item">
-        <div class="todo-time">${event.time}</div>
-        <div class="todo-title">${event.title}</div>
-        <div class="todo-location">${event.location}</div>
-        <button class="delete-btn" data-id="${event.id}">🗑</button>
-      </div>
-    `).join('');
+        todoList.innerHTML = events.map(event => {
+            const color = getColorForType(event.type || "일반");
+            return `
+                <div class="todo-item" style="border-left: 4px solid ${color}">
+                <div class="todo-time">${event.time}</div>
+                <div class="todo-title">${event.title}</div>
+                <div class="todo-location">${event.type}</div>
+                <button class="delete-btn" data-id="${event.id}">🗑</button>
+                </div>
+            `;
+        }).join('');
 
         todoList.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -204,13 +207,98 @@ async function handleAddEventClick() {
     const title = prompt("일정 제목을 입력하세요:");
     if (title) {
         const time = prompt("시간 (예: 14:00)", "00:00");
-        const location = prompt("장소", "");
+        const type = prompt("유형 (예: 약속, 회의)", "");
         await updateCalendarEvents({
-            [dateStr]: [{ title, time, location }]
+            [dateStr]: [{ title, time, type }]
         });
     }
 }
 
+const fixedTypeColors = {
+    "과제": "#34a853",
+    "퀴즈": "#4285f4",
+    "시험": "#d93025",
+    "일반": "#9e9e9e"
+};
+
+const dynamicTypeColors = {}; // 새로운 type → 자동 색상
+const fallbackColors = ["#ff9800", "#ab47bc", "#00acc1", "#ef5350", "#5c6bc0", "#26a69a"];
+let fallbackColorIndex = 0;
+
+function getColorForType(type) {
+    // 1️⃣ 고정 type
+    if (fixedTypeColors[type]) return fixedTypeColors[type];
+
+    // 2️⃣ 이미 지정된 동적 type
+    if (dynamicTypeColors[type]) return dynamicTypeColors[type];
+
+    // 3️⃣ 새로운 type → 색 배정
+    const color = fallbackColors[fallbackColorIndex % fallbackColors.length];
+    dynamicTypeColors[type] = color;
+    fallbackColorIndex++;
+    return color;
+}
+
+// 크롤링 요청
+async function handleRefreshEventClick() {
+    const token = await getAuthToken(); // chrome.storage.local에서 토큰 가져오기 함수
+
+    try {
+        const res = await fetch('http://localhost:8000/api/crawl', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!res.ok) {
+            console.error('❌ 크롤링 요청 실패:', res.status);
+            return;
+        }
+
+        const taskList = await res.json();
+
+        const groupedEvents = {};
+
+        for (const task of taskList) {
+            // 1️⃣ 날짜 & 시간 분리
+            const dateTime = new Date(task.due_date);
+            const dateStr = dateTime.toISOString().split('T')[0]; // "YYYY-MM-DD"
+            const timeStr = dateTime.toTimeString().slice(0, 5);  // "HH:MM"
+
+            // 2️⃣ type → 한글 매핑
+            const typeMap = {
+                quiz: "퀴즈",
+                assignment: "과제",
+                exam: "시험",
+                general: "일반"
+            };
+            const type = typeMap[task.type] || "일정";
+
+            // 3️⃣ 객체 구성
+            const event = {
+                id: `${dateStr}_${task.title}_${timeStr}`,  // 내부 id
+                BB_id: task.id,                             // 외부 id
+                date: dateStr,
+                time: timeStr,
+                title: task.title,
+                type: type
+            };
+
+            // 4️⃣ 그룹에 추가
+            if (!groupedEvents[dateStr]) groupedEvents[dateStr] = [];
+            groupedEvents[dateStr].push(event);
+        }
+
+        // 5️⃣ 저장
+        await updateEvents(groupedEvents, true);
+        console.log("✅ 크롤링 일정 저장 완료");
+
+    } catch (err) {
+        console.error("❗ 크롤링 요청 중 에러:", err);
+    }
+}
 document.addEventListener('DOMContentLoaded', () => {
     console.log("📌 DOM fully loaded");
     initDB().then(() => {
@@ -225,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('prevMonth')?.addEventListener('click', previousMonth);
         document.getElementById('nextMonth')?.addEventListener('click', nextMonth);
         document.getElementById('addEventBtn')?.addEventListener('click', handleAddEventClick);
+        document.getElementById('crawlBtn')?.addEventListener('click', handleRefreshEventClick);
 
         // FAB 버튼 이벤트
         document.getElementById('chatFab').addEventListener('click', openChatScreen);

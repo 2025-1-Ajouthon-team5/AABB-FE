@@ -126,7 +126,7 @@ async function generateAIResponse(userMessage) {
         
         if (todayEvents.length > 0) {
             const eventsList = todayEvents.map(event => 
-                `• ${event.time} ${event.title} (${event.location})`
+                `• ${event.time} ${event.title} (${event.type})`
             ).join('\n');
             return `오늘의 일정입니다:\n\n${eventsList}`;
         } else {
