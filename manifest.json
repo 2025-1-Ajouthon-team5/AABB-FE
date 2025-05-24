@@ -11,7 +11,7 @@
     "service_worker": "background.js"
   },
   "content_scripts": [{
-    "matches": ["*://eclass2.ajou.ac.kr/ultra/*"],
+    "matches": ["*://eclass2.ajou.ac.kr/ultra/course"],
     "js": ["content.js"]
   }]
 }
