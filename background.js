@@ -4,14 +4,34 @@ let isCurrentlyCrawling = false;
 let crawlQueue = [];
 let collectedData = [];
 
+// Send logs to the main tab for display
+function sendLogToMainPage(message, logType = 'info') {
+  chrome.tabs.query({
+    url: "*://eclass2.ajou.ac.kr/ultra/course*"
+  }, (tabs) => {
+    if (tabs.length > 0) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        type: "CRAWL_LOG",
+        message: message,
+        logType: logType,
+        timestamp: new Date().toISOString()
+      }).catch(err => {
+        console.error('Failed to send log to main page:', err);
+      });
+    }
+  });
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log('📨 Message received:', msg.type);
   
   if (msg.type === "COURSE_LINKS") {
     console.log('🎯 Starting stealth crawling for', msg.payload.length, 'courses');
+    sendLogToMainPage(`Starting stealth crawling for ${msg.payload.length} courses`, 'info');
     
     if (isCurrentlyCrawling) {
       console.log('⏳ Already crawling, adding to queue...');
+      sendLogToMainPage('Already crawling, adding to queue...', 'warning');
       crawlQueue = crawlQueue.concat(msg.payload);
     } else {
       startStealthCrawling(msg.payload);
@@ -37,11 +57,13 @@ async function startStealthCrawling(courseUrls) {
   // 첫 번째로 숨겨진 윈도우 생성
   const hiddenWindow = await createHiddenWindow();
   console.log('👻 Created hidden window:', hiddenWindow.id);
+  sendLogToMainPage('Created hidden window for crawling', 'info');
   
   try {
     for (let i = 0; i < courseUrls.length; i++) {
       const url = courseUrls[i];
       console.log(`\n🔍 Stealth crawling ${i + 1}/${courseUrls.length}: ${url}`);
+      sendLogToMainPage(`Crawling course ${i + 1}/${courseUrls.length}`, 'crawl');
       
       await crawlCourseInHiddenWindow(hiddenWindow.id, url);
       
@@ -56,6 +78,7 @@ async function startStealthCrawling(courseUrls) {
     try {
       await chrome.windows.remove(hiddenWindow.id);
       console.log('🗑️ Hidden window cleaned up');
+      sendLogToMainPage('Hidden window cleaned up', 'info');
     } catch (e) {
       console.log('ℹ️ Window already closed');
     }
@@ -65,7 +88,10 @@ async function startStealthCrawling(courseUrls) {
     // 큐에 대기 중인 작업이 있으면 처리
     if (crawlQueue.length > 0) {
       const nextBatch = crawlQueue.splice(0);
+      sendLogToMainPage(`Processing ${nextBatch.length} queued courses`, 'info');
       setTimeout(() => startStealthCrawling(nextBatch), 1000);
+    } else {
+      sendLogToMainPage('Crawling completed! See summary below.', 'success');
     }
   }
   
@@ -134,6 +160,7 @@ async function crawlCourseInHiddenWindow(windowId, courseUrl) {
     
   } catch (error) {
     console.error(`❌ Stealth crawling failed for ${courseUrl}:`, error.message);
+    sendLogToMainPage(`Failed to crawl: ${courseUrl} - ${error.message}`, 'error');
   } finally {
     // 탭 정리 (더 안전하게)
     if (tabId) {
@@ -192,6 +219,9 @@ function handleCourseData(courseData) {
     lectureNotes: courseData.lectureNotes?.length || 0
   });
   
+  sendLogToMainPage(`Collected data from: ${courseData.courseName}`, 'success');
+  sendLogToMainPage(`Found: ${courseData.notices?.length || 0} notices, ${courseData.assignments?.length || 0} assignments`, 'info');
+  
   // 기존 데이터 업데이트 또는 추가
   const existingIndex = collectedData.findIndex(
     course => course.courseId === courseData.courseId
@@ -210,19 +240,31 @@ function printCollectedSummary() {
   console.log('\n🎉 === STEALTH CRAWLING SUMMARY ===');
   console.log('📊 Total courses:', collectedData.length);
   
+  const summaryMsg = `Crawling completed: ${collectedData.length} courses processed`;
+  sendLogToMainPage(summaryMsg, 'success');
+  
   collectedData.forEach((course, index) => {
     console.log(`${index + 1}. ${course.courseName}`);
     console.log(`   📋 Notices: ${course.notices?.length || 0}`);
     console.log(`   📝 Assignments: ${course.assignments?.length || 0}`);
     console.log(`   📚 Lecture Notes: ${course.lectureNotes?.length || 0}`);
+    
+    const courseMsg = `${course.courseName}: ${course.notices?.length || 0} notices, ${course.assignments?.length || 0} assignments, ${course.lectureNotes?.length || 0} lecture notes`;
+    sendLogToMainPage(courseMsg, 'info');
   });
   
   const totalNotices = collectedData.reduce((sum, c) => sum + (c.notices?.length || 0), 0);
   const totalAssignments = collectedData.reduce((sum, c) => sum + (c.assignments?.length || 0), 0);
+  const totalLectureNotes = collectedData.reduce((sum, c) => sum + (c.lectureNotes?.length || 0), 0);
   
   console.log(`\n📈 Total items collected:`);
   console.log(`   📋 Total notices: ${totalNotices}`);
   console.log(`   📝 Total assignments: ${totalAssignments}`);
+  console.log(`   📚 Total lecture notes: ${totalLectureNotes}`);
+  
+  const totalMsg = `Total collected: ${totalNotices} notices, ${totalAssignments} assignments, ${totalLectureNotes} lecture notes`;
+  sendLogToMainPage(totalMsg, 'success');
+  
   console.log('=================================\n');
 }
 
@@ -244,7 +286,11 @@ function stealthCrawlFunction(courseUrl) {
       '.bb-announcement',
       '.stream-item[data-stream-entry-type="Announcement"]',
       '.activity-item.announcement',
-      '[class*="announcement"]'
+      '[class*="announcement"]',
+      // Add more specific selectors
+      '.base-content-grid .content-item[data-content-id]', 
+      '.content-list-item',
+      '.stream-content .stream-item'
     ],
     assignments: [
       '.content-item[data-content-type="resource/x-bb-assignment"]', 
@@ -252,16 +298,47 @@ function stealthCrawlFunction(courseUrl) {
       '.bb-assignment',
       '.stream-item[data-stream-entry-type="Assignment"]',
       '.activity-item.assignment',
-      '[class*="assignment"]'
+      '[class*="assignment"]',
+      '.base-content-grid .content-item[data-content-id]',
+      '.content-list-item[data-content-type*="assignment"]'
     ],
     content: [
       '.content-item[data-content-type="resource/x-bb-document"]',
       '.content-item[data-content-type="resource/x-bb-folder"]',
       '.content-item',
       '.course-content',
-      '.lecture-note'
+      '.lecture-note',
+      '.document-list .document-item',
+      '.content-list .content-item',
+      '.content-list-item[data-content-type*="document"]'
     ]
   };
+  
+  // Load more content by scrolling
+  async function scrollToLoadAll() {
+    console.log('📜 Scrolling to load all content...');
+    
+    const maxScrolls = 10;
+    let lastHeight = 0;
+    
+    for (let i = 0; i < maxScrolls; i++) {
+      const currentHeight = document.documentElement.scrollHeight;
+      if (currentHeight === lastHeight) {
+        console.log(`No more content to load after ${i} scrolls`);
+        break;
+      }
+      
+      lastHeight = currentHeight;
+      window.scrollTo(0, currentHeight);
+      console.log(`Scroll ${i+1}/${maxScrolls}: height ${currentHeight}`);
+      
+      // Wait for content to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Return to top
+    window.scrollTo(0, 0);
+  }
   
   function findItems(selectorArray, type) {
     let items = [];
@@ -272,18 +349,19 @@ function stealthCrawlFunction(courseUrl) {
         console.log(`✅ Found ${elements.length} ${type} with: ${selector}`);
         
         const extracted = Array.from(elements).map(el => ({
-          title: extractText(el, ['.title', '.content-title', 'h1', 'h2', 'h3', 'a']) || '제목 없음',
-          content: extractText(el, ['.content', '.description', 'p']) || '내용 없음',
+          title: extractText(el, ['.title', '.content-title', 'h1', 'h2', 'h3', 'a', '.item-title']) || 'No title',
+          content: extractText(el, ['.content', '.description', 'p', '.body', '.text']) || 'No content',
+          date: extractText(el, ['.date', '.created-date', '.due-date', 'time', '[datetime]']) || '',
+          url: extractUrl(el) || '',
           selector: selector
         }));
         
         items = items.concat(extracted);
-        break; // 첫 번째로 성공한 선택자만 사용
       }
     }
     
     return items.filter(item => 
-      item.title !== '제목 없음' && 
+      item.title !== 'No title' && 
       item.title.length > 0 &&
       !item.title.includes('undefined')
     );
@@ -299,42 +377,71 @@ function stealthCrawlFunction(courseUrl) {
     return element.textContent.trim();
   }
   
-  // 데이터 수집
-  const notices = findItems(selectors.notices, 'notices');
-  const assignments = findItems(selectors.assignments, 'assignments');
-  const lectureNotes = findItems(selectors.content, 'content');
+  function extractUrl(element) {
+    const link = element.querySelector('a[href]');
+    if (link && link.href) return link.href;
+    
+    // Try data attributes
+    if (element.dataset.href) return element.dataset.href;
+    if (element.dataset.url) return element.dataset.url;
+    
+    return '';
+  }
   
-  // 코스 정보
-  const courseIdMatch = (courseUrl || location.href).match(/courses\/([^\/\?]+)/);
-  const courseId = courseIdMatch ? courseIdMatch[1] : 'unknown';
-  const courseName = document.title || '코스명 없음';
-  
-  const result = {
-    courseId,
-    courseName: courseName.trim(),
-    notices,
-    assignments,
-    lectureNotes,
-    url: location.href,
-    timestamp: new Date().toISOString(),
-    method: 'stealth'
-  };
-  
-  console.log('🥷 Stealth crawling result:', {
-    courseId: result.courseId,
-    courseName: result.courseName,
-    notices: result.notices.length,
-    assignments: result.assignments.length,
-    lectureNotes: result.lectureNotes.length
+  // Execute scrolling and data collection
+  return new Promise(async (resolve) => {
+    try {
+      // Scroll to load more content
+      await scrollToLoadAll();
+      
+      // Collect data
+      const notices = findItems(selectors.notices, 'notices');
+      const assignments = findItems(selectors.assignments, 'assignments');
+      const lectureNotes = findItems(selectors.content, 'content');
+      
+      // Course info
+      const courseIdMatch = (courseUrl || location.href).match(/courses\/([^\/\?]+)/);
+      const courseId = courseIdMatch ? courseIdMatch[1] : 'unknown';
+      const courseName = document.title || 'Unknown Course';
+      
+      const result = {
+        courseId,
+        courseName: courseName.trim(),
+        notices,
+        assignments,
+        lectureNotes,
+        url: location.href,
+        timestamp: new Date().toISOString(),
+        method: 'stealth'
+      };
+      
+      console.log('🥷 Stealth crawling result:', {
+        courseId: result.courseId,
+        courseName: result.courseName,
+        notices: result.notices.length,
+        assignments: result.assignments.length,
+        lectureNotes: result.lectureNotes.length
+      });
+      
+      // Send result to background
+      chrome.runtime.sendMessage({
+        type: "COURSE_DATA",
+        payload: result
+      });
+      
+      resolve(result);
+    } catch (error) {
+      console.error('Error during crawling:', error);
+      resolve({
+        courseId: 'error',
+        courseName: 'Error',
+        notices: [],
+        assignments: [],
+        lectureNotes: [],
+        error: error.message
+      });
+    }
   });
-  
-  // 백그라운드로 결과 전송
-  chrome.runtime.sendMessage({
-    type: "COURSE_DATA",
-    payload: result
-  });
-  
-  return result;
 }
 
 console.log('🥷 Stealth mode ready!');
