@@ -8,7 +8,7 @@ document.getElementById('login-form').addEventListener('submit', async function 
   statusEl.textContent = '로그인 중...';
 
   try {
-    const res = await fetch('https://your-backend.com/api/login', {
+    const res = await fetch('http://localhost:8000/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, password })
@@ -19,9 +19,16 @@ document.getElementById('login-form').addEventListener('submit', async function 
     if (res.ok) {
       statusEl.style.color = 'green';
       statusEl.textContent = '로그인 성공!';
-      // 팝업 창 변경
-      chrome.runtime.sendMessage({ type: 'LOGIN_SUCCESS' });
-      window.close();
+
+      const token = result.token;
+
+      // ✅ 토큰 저장
+      chrome.storage.local.set({ authToken: token }, () => {
+        console.log('🔐 토큰 저장됨:', token);
+        window.location.href = 'popup.html';
+        // 팝업 창 변경
+        chrome.runtime.sendMessage({ type: 'LOGIN_SUCCESS' });
+      });
     } else {
       statusEl.style.color = 'red';
       statusEl.textContent = result.message || '로그인 실패';

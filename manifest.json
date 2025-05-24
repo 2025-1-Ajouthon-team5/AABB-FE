@@ -3,10 +3,10 @@
   "name": "Ajou Calendar",
   "version": "1.0",
   "action": {
-    "default_popup": "loginPopup.html"
+    "default_popup": "popup.html"
   },
   "permissions": ["scripting", "tabs", "storage"],
-  "host_permissions": ["*://eclass2.ajou.ac.kr/*", "*://your-backend.com/*"],
+  "host_permissions": ["*://eclass2.ajou.ac.kr/*"],
   "background": {
     "service_worker": "background.js"
   },
