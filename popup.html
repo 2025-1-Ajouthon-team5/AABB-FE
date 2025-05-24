@@ -197,6 +197,53 @@
             margin-bottom: 8px;
             border-left: 4px solid #34a853;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .course-name {
+            font-size: 13px;
+            color: #202124;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .title-and-type {
+            font-size: 14px;
+            color: #202124;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .type-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border: 1px solid;
+            border-radius: 12px;
+            background: transparent;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            color: #5f6368;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .delete-btn:hover {
+            background: #f8f9fa;
+            color: #d93025;
         }
 
         .todo-time {

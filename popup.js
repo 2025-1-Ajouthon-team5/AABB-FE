@@ -35,9 +35,11 @@ async function getMonthlySchedules(year, month) {
     const tx = db.transaction("schedules", "readonly");
     const store = tx.objectStore("schedules");
     const index = store.index("date");
+
     return new Promise((resolve, reject) => {
         const request = index.getAll();
         const result = {};
+
         request.onsuccess = () => {
             request.result.forEach(event => {
                 const [y, m] = event.date.split('-');
@@ -116,20 +118,25 @@ function updateTodoList() {
     const dayOfWeek = dayNames[selectedDate.getDay()];
     const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const events = dynamicEvents[dateKey] || [];
+    
     document.getElementById('selectedDate').textContent = `${month}월 ${day}일 ${dayOfWeek}`;
     document.getElementById('eventCount').textContent = events.length > 0 ? `일정 ${events.length}개` : '일정 없음';
+    
     const todoList = document.getElementById('todoList');
     if (events.length === 0) {
         todoList.innerHTML = `<div class="no-events"><div class="no-events-icon">📅</div><div>이 날은 일정이 없습니다</div></div>`;
     } else {
         todoList.innerHTML = events.map(event => {
             const color = getColorForType(event.type || "일반");
+            
             return `
                 <div class="todo-item" style="border-left: 4px solid ${color}">
-                <div class="todo-time">${event.time}</div>
-                <div class="todo-title">${event.title}</div>
-                <div class="todo-location">${event.type}</div>
-                <button class="delete-btn" data-id="${event.id}">🗑</button>
+                    <div class="course-name">${event.course || '일반'}</div>
+                    <div class="title-and-type">
+                        ${event.title}
+                        <span class="type-badge" style="border-color: ${color}; color: ${color};">${event.type || '일반'}</span>
+                    </div>
+                    <button class="delete-btn" data-id="${event.id}">🗑</button>
                 </div>
             `;
         }).join('');
@@ -257,47 +264,48 @@ async function handleRefreshEventClick() {
         }
 
         const taskList = await res.json();
+        console.log('📥 서버에서 받은 데이터:', taskList);
 
-        const groupedEvents = {};
+        // 🔽 IndexedDB에 저장
+        const db = await initDB();
+        const tx = db.transaction('schedules', 'readwrite');
+        const store = tx.objectStore('schedules');
+        
+        taskList.forEach(({ id, title, due_date, type, course }) => {
+            // due_date가 null이면 저장하지 않음
+            if (!due_date) {
+                console.log(`⚠️ due_date가 null인 항목 건너뜀: ${title} (id: ${id})`);
+                return;
+            }
 
-        for (const task of taskList) {
-            // 1️⃣ 날짜 & 시간 분리
-            const dateTime = new Date(task.due_date);
-            const dateStr = dateTime.toISOString().split('T')[0]; // "YYYY-MM-DD"
-            const timeStr = dateTime.toTimeString().slice(0, 5);  // "HH:MM"
+            // due_date에서 시간 부분 제거 (날짜만 추출)
+            // "2025-03-24T23:59:00" → "2025-03-24"
+            const formattedDate = due_date.split('T')[0]; 
+            
+            // 정확한 5개 속성만 저장
+            store.put({
+                id,
+                title,
+                due_date: formattedDate, // 날짜만 저장
+                type,
+                course
+            });
+        });
+        
+        await tx.done;
 
-            // 2️⃣ type → 한글 매핑
-            const typeMap = {
-                quiz: "퀴즈",
-                assignment: "과제",
-                exam: "시험",
-                general: "일반"
-            };
-            const type = typeMap[task.type] || "일정";
+        // 변경된 일정 다시 렌더링
+        await renderCalendar();
 
-            // 3️⃣ 객체 구성
-            const event = {
-                id: `${dateStr}_${task.title}_${timeStr}`,  // 내부 id
-                BB_id: task.id,                             // 외부 id
-                date: dateStr,
-                time: timeStr,
-                title: task.title,
-                type: type
-            };
-
-            // 4️⃣ 그룹에 추가
-            if (!groupedEvents[dateStr]) groupedEvents[dateStr] = [];
-            groupedEvents[dateStr].push(event);
-        }
-
-        // 5️⃣ 저장
-        await updateEvents(groupedEvents, true);
+        showStatusMessage(`${taskList.length}개의 일정을 성공적으로 불러왔습니다.`, 'success');
         console.log("✅ 크롤링 일정 저장 완료");
 
     } catch (err) {
         console.error("❗ 크롤링 요청 중 에러:", err);
+        showStatusMessage('일정을 불러오는 중 오류가 발생했습니다.', 'error');
     }
 }
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log("📌 DOM fully loaded");
     initDB().then(() => {
