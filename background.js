@@ -1,4 +1,5 @@
 chrome.runtime.onMessage.addListener((msg, sender) => {
+    console.log(msg.payload);
   if (msg.type === "COURSE_LINKS") {
     crawlAllCourses(msg.payload);  // courseLinks 배열 순회
   }
