@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -232,13 +233,14 @@
         }
     </style>
 </head>
+
 <body>
     <div class="calendar-container">
         <!-- 헤더 -->
         <div class="calendar-header">
             <div class="month-navigation">
                 <button class="nav-btn" id="prevMonth">‹</button>
-                <div class="current-month" id="currentMonth">2024년 5월</div>
+                <div class="current-month" id="currentMonth">2025년 5월</div>
                 <div style="display: flex; gap: 4px;">
                     <button class="nav-btn" id="nextMonth">›</button>
                     <button class="nav-btn" id="refreshBtn" title="새로고침">⟳</button>
@@ -271,9 +273,11 @@
                 <div class="event-count" id="eventCount">일정 2개</div>
             </div>
             <div class="todo-list" id="todoList">
-               
             </div>
         </div>
+
+        <!-- FAB 버튼 -->
+        <button class="fab" id="chatFab">💬</button>
     </div>
 
     <script src="popup.js"></script>
