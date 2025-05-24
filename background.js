@@ -7,7 +7,7 @@ let collectedData = [];
 // Send logs to the main tab for display
 function sendLogToMainPage(message, logType = 'info') {
   chrome.tabs.query({
-    url: "*://eclass2.ajou.ac.kr/ultra/course*"
+    url: "*://eclass2.ajou.ac.kr/ultra/course"
   }, (tabs) => {
     if (tabs.length > 0) {
       chrome.tabs.sendMessage(tabs[0].id, {
