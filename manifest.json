@@ -2,12 +2,16 @@
   "manifest_version": 3,
   "name": "아주대 캘린더",
   "version": "1.0",
-  "description": "아주대 학사일정 캘린더 확장프로그램",
-  "permissions": [
-    "storage"
-  ],
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "아주대 캘린더"
-  }
+    "default_popup": "popup.html"
+  },
+  "permissions": ["scripting", "tabs"],
+  "host_permissions": ["*://eclass2.ajou.ac.kr/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": ["*://eclass2.ajou.ac.kr/ultra/*"],
+    "js": ["content.js"]
+  }]
 }
