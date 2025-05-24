@@ -30,24 +30,6 @@ function initDB() {
     });
 }
 
-// 채팅 화면으로 전환
-function openChatScreen() {
-    // 현재 일정 데이터를 storage에 저장
-    chrome.storage.local.set({ calendarEvents: sampleEvents }, () => {
-        // background script를 통해 팝업 변경
-        chrome.runtime.sendMessage({ type: 'SWITCH_TO_CHAT' }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.error('Message sending failed:', chrome.runtime.lastError);
-                return;
-            }
-            if (response && response.success) {
-                // 팝업 창 변경
-                window.location.href = 'chatPopup.html';
-            }
-        });
-    });
-}
-
 async function getMonthlySchedules(year, month) {
     const db = await initDB();
     const tx = db.transaction("schedules", "readonly");
@@ -229,112 +211,12 @@ async function handleAddEventClick() {
     }
 }
 
-// 상태 메시지를 표시하는 함수
-function showStatusMessage(message, type = 'info') {
-    // 메시지 컨테이너가 없으면 생성
-    let messageContainer = document.getElementById('status-message');
-    if (!messageContainer) {
-        messageContainer = document.createElement('div');
-        messageContainer.id = 'status-message';
-        messageContainer.style.cssText = `
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            padding: 10px 15px;
-            border-radius: 4px;
-            font-size: 13px;
-            z-index: 1000;
-            text-align: center;
-            transition: opacity 0.3s;
-        `;
-        document.body.appendChild(messageContainer);
-    }
-    
-    // 메시지 타입에 따른 스타일 설정
-    let backgroundColor = '#f8f9fa';
-    let textColor = '#202124';
-    let borderColor = '#dadce0';
-    
-    switch(type) {
-        case 'success':
-            backgroundColor = '#e6f4ea';
-            textColor = '#1e8e3e';
-            borderColor = '#ceead6';
-            break;
-        case 'error':
-            backgroundColor = '#fce8e6';
-            textColor = '#d93025';
-            borderColor = '#f5c2bd';
-            break;
-        case 'warning':
-            backgroundColor = '#fef7e0';
-            textColor = '#ea8600';
-            borderColor = '#fedcb1';
-            break;
-    }
-    
-    messageContainer.style.backgroundColor = backgroundColor;
-    messageContainer.style.color = textColor;
-    messageContainer.style.border = `1px solid ${borderColor}`;
-    
-    messageContainer.textContent = message;
-    messageContainer.style.opacity = '1';
-    
-    // 5초 후 메시지 숨기기
-    setTimeout(() => {
-        messageContainer.style.opacity = '0';
-    }, 5000);
-}
-
-// 크롤링 시작 함수 (이 함수를 추가하세요)
-function startCrawling() {
-    const refreshBtn = document.getElementById('refreshBtn');
-    
-    // 이미 크롤링 중이면 중복 실행 방지
-    if (refreshBtn.classList.contains('loading')) {
-        return;
-    }
-    
-    // 버튼 로딩 상태로 변경
-    refreshBtn.classList.add('loading');
-    
-    // 상태 메시지 표시
-    showStatusMessage('크롤링을 시작합니다...');
-    
-    // 모든 탭에서 e-class 페이지 찾기
-    chrome.tabs.query({url: "*://eclass2.ajou.ac.kr/ultra/course*"}, (tabs) => {
-        if (tabs.length === 0) {
-            // e-class 페이지가 열려있지 않은 경우
-            showStatusMessage('이클래스 페이지가 열려있지 않습니다. 이클래스에 접속 후 다시 시도해주세요.', 'error');
-            refreshBtn.classList.remove('loading');
-            
-            // 새 탭으로 이클래스 페이지 열기 제안
-            if (confirm('이클래스 페이지를 새 탭에서 열까요?')) {
-                chrome.tabs.create({ url: 'https://eclass2.ajou.ac.kr/ultra/course' });
-            }
-            return;
-        }
-        
-        // 이클래스 페이지가 있으면 크롤링 시작 메시지 전송
-        chrome.tabs.sendMessage(tabs[0].id, { type: "START_CRAWLING" }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.error('Failed to send message:', chrome.runtime.lastError);
-                showStatusMessage('크롤링 시작에 실패했습니다. 페이지를 새로고침하고 다시 시도해주세요.', 'error');
-                refreshBtn.classList.remove('loading');
-                return;
-            }
-            
-            if (response && response.success) {
-                showStatusMessage('크롤링이 시작되었습니다. 잠시만 기다려주세요...', 'success');
-                
-                // 30초 후 자동으로 로딩 상태 해제 (타임아웃 방지)
-                setTimeout(() => {
-                    if (refreshBtn.classList.contains('loading')) {
-                        refreshBtn.classList.remove('loading');
-                        showStatusMessage('크롤링이 백그라운드에서 계속 진행됩니다.', 'info');
-                    }
-                }, 30000);
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("📌 DOM fully loaded");
+    initDB().then(() => {
+        chrome.storage.local.get('authToken', async (result) => {
+            if (result.authToken) {
+                await renderCalendar();
             } else {
                 window.location.href = 'login.html';
             }
