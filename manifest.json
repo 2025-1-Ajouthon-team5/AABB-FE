@@ -1,22 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "아주대 캘린더",
+  "name": "Ajou Calendar",
   "version": "1.0",
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "login.html"
   },
-  "permissions": ["scripting", "tabs"],
-  "host_permissions": ["*://eclass2.ajou.ac.kr/*"],
+  "permissions": ["scripting", "tabs", "storage"],
+  "host_permissions": ["*://eclass2.ajou.ac.kr/*", "*://your-backend.com/*"],
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [{
-    "matches": ["*://eclass2.ajou.ac.kr/ultra/course"],
-    "js": ["content.js"]
-  },
-  {
-    "matches": ["*://eclass2.ajou.ac.kr/ultra/courses/*/outline"],
-    "js": ["courseDetailCrawler.js"]
-  }
+  "content_scripts": [
+    {
+      "matches": ["*://eclass2.ajou.ac.kr/ultra/*"],
+      "js": ["content.js"]
+    }
   ]
 }
