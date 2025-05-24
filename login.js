@@ -14,7 +14,7 @@ document.getElementById('login-form').addEventListener('submit', async function 
       body: JSON.stringify({ userId, password })
     });
 
-    const result = await res.json();
+    const result = true;//await res.json();
 
     if (res.ok) {
       statusEl.style.color = 'green';

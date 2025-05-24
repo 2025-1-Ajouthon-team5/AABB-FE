@@ -23,6 +23,18 @@ const sampleEvents = {
     ]
 };
 
+// 채팅 화면으로 전환
+function openChatScreen() {
+    // 현재 일정 데이터를 storage에 저장
+    chrome.storage.local.set({ calendarEvents: sampleEvents }, () => {
+        // background script를 통해 팝업 변경
+        chrome.runtime.sendMessage({ type: 'SWITCH_TO_CHAT' }, () => {
+            window.close();
+        });
+    });
+}
+
+// 캘린더 관련 함수들 (기존 코드 유지)
 function renderCalendar() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -290,9 +302,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // 이벤트 리스너 등록
 document.addEventListener('DOMContentLoaded', function() {
+    // 캘린더 관련 이벤트
     document.getElementById('prevMonth').addEventListener('click', previousMonth);
     document.getElementById('nextMonth').addEventListener('click', nextMonth);
     document.getElementById('refreshBtn').addEventListener('click', startCrawling);
+    
+    // FAB 버튼 이벤트
+    document.getElementById('chatFab').addEventListener('click', openChatScreen);
     
     // 초기 렌더링
     renderCalendar();
