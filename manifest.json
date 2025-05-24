@@ -5,8 +5,8 @@
   "action": {
     "default_popup": "popup.html"
   },
-  "permissions": ["scripting", "tabs", "storage"],
-  "host_permissions": ["*://eclass2.ajou.ac.kr/*"],
+  "permissions": ["scripting", "tabs", "storage", "alarms"],
+  "host_permissions": ["http://172.21.46.69:8000/*"],
   "background": {
     "service_worker": "background.js"
   },

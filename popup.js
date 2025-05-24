@@ -244,16 +244,15 @@ async function handleRefreshEventClick() {
     const token = await getAuthToken(); // chrome.storage.local에서 토큰 가져오기 함수
 
     try {
-        const res = await fetch('http://localhost:8000/api/crawl', {
+        const res = await fetch(`http://172.21.46.69:8000/api/crawl/${token}`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
+            // headers: {
+            //     'Authorization': `Bearer ${token}`
+            // }
         });
 
         if (!res.ok) {
-            console.error('❌ 크롤링 요청 실패:', res.status);
+            console.error(`서버 에러: ${res.status} ${res.statusText}`);
             return;
         }
 
