@@ -3,7 +3,7 @@
   "name": "Ajou Calendar",
   "version": "1.0",
   "action": {
-    "default_popup": "login.html"
+    "default_popup": "loginPopup.html"
   },
   "permissions": ["scripting", "tabs", "storage"],
   "host_permissions": ["*://eclass2.ajou.ac.kr/*", "*://your-backend.com/*"],
@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "matches": ["*://eclass2.ajou.ac.kr/ultra/*"],
-      "js": ["content.js"]
+      "js": ["popup.js"]
     }
   ]
 }
