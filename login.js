@@ -20,8 +20,17 @@ document.getElementById('login-form').addEventListener('submit', async function 
       statusEl.style.color = 'green';
       statusEl.textContent = '로그인 성공!';
       // 팝업 창 변경
-      chrome.runtime.sendMessage({ type: 'LOGIN_SUCCESS' });
-      window.close();
+      chrome.runtime.sendMessage({ type: 'LOGIN_SUCCESS' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Message sending failed:', chrome.runtime.lastError);
+          return;
+        }
+        if (response && response.success) {
+          setTimeout(() => {
+            window.close();
+          }, 100);
+        }
+      });
     } else {
       statusEl.style.color = 'red';
       statusEl.textContent = result.message || '로그인 실패';

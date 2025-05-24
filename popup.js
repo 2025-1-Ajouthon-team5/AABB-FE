@@ -28,8 +28,17 @@ function openChatScreen() {
     // 현재 일정 데이터를 storage에 저장
     chrome.storage.local.set({ calendarEvents: sampleEvents }, () => {
         // background script를 통해 팝업 변경
-        chrome.runtime.sendMessage({ type: 'SWITCH_TO_CHAT' }, () => {
-            window.close();
+        chrome.runtime.sendMessage({ type: 'SWITCH_TO_CHAT' }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('Message sending failed:', chrome.runtime.lastError);
+                return;
+            }
+            if (response && response.success) {
+                // 약간의 지연 후 창 닫기 (팝업 전환 완료 대기)
+                setTimeout(() => {
+                    window.close();
+                }, 100);
+            }
         });
     });
 }

@@ -18,8 +18,17 @@ function saveChatMessages() {
 
 // 뒤로가기 함수
 function goBackToCalendar() {
-    chrome.action.setPopup({ popup: 'popup.html' }, () => {
-        window.close();
+    chrome.runtime.sendMessage({ type: 'SWITCH_TO_CALENDAR' }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error('Message sending failed:', chrome.runtime.lastError);
+            return;
+        }
+        if (response && response.success) {
+            // 약간의 지연 후 창 닫기 (팝업 전환 완료 대기)
+            setTimeout(() => {
+                window.close();
+            }, 100);
+        }
     });
 }
 
