@@ -92,11 +92,196 @@ async function startStealthCrawling(courseUrls) {
       setTimeout(() => startStealthCrawling(nextBatch), 1000);
     } else {
       sendLogToMainPage('Crawling completed! See summary below.', 'success');
+      
+      // 크롤링 완료 메시지를 팝업에 전송
+      notifyCrawlingComplete();
     }
   }
   
   console.log('🎉 Stealth crawling completed!');
   printCollectedSummary();
+}
+
+// 크롤링 완료 알림을 팝업에 전송
+function notifyCrawlingComplete() {
+  console.log('📢 Sending crawling completion notification to popup');
+  
+  // 수집된 데이터를 캘린더 형식으로 변환
+  const calendarEvents = convertToCalendarEvents(collectedData);
+  
+  // 팝업에 알림 전송
+  chrome.runtime.sendMessage({
+    type: "CRAWL_COMPLETE",
+    data: {
+      events: calendarEvents,
+      summary: {
+        courseCount: collectedData.length,
+        totalNotices: collectedData.reduce((sum, c) => sum + (c.notices?.length || 0), 0),
+        totalAssignments: collectedData.reduce((sum, c) => sum + (c.assignments?.length || 0), 0),
+        totalLectureNotes: collectedData.reduce((sum, c) => sum + (c.lectureNotes?.length || 0), 0)
+      }
+    }
+  }).catch(err => {
+    console.error('Failed to send completion notification to popup:', err);
+  });
+}
+
+// 수집된 데이터를 캘린더 이벤트 형식으로 변환
+function convertToCalendarEvents(coursesData) {
+  const calendarEvents = {};
+  
+  coursesData.forEach(course => {
+    // 공지사항 처리
+    course.notices?.forEach(notice => {
+      if (!notice.date) return;
+      
+      // 날짜 추출 시도
+      const dateObj = extractDateFromString(notice.date);
+      if (!dateObj) return;
+      
+      const dateKey = formatDateKey(dateObj);
+      
+      if (!calendarEvents[dateKey]) {
+        calendarEvents[dateKey] = [];
+      }
+      
+      calendarEvents[dateKey].push({
+        time: formatTime(dateObj),
+        title: `[공지] ${notice.title}`,
+        location: course.courseName,
+        type: 'notice',
+        courseId: course.courseId
+      });
+    });
+    
+    // 과제 처리
+    course.assignments?.forEach(assignment => {
+      if (!assignment.date) return;
+      
+      // 날짜 추출 시도
+      const dateObj = extractDateFromString(assignment.date);
+      if (!dateObj) return;
+      
+      const dateKey = formatDateKey(dateObj);
+      
+      if (!calendarEvents[dateKey]) {
+        calendarEvents[dateKey] = [];
+      }
+      
+      calendarEvents[dateKey].push({
+        time: formatTime(dateObj),
+        title: `[과제] ${assignment.title}`,
+        location: course.courseName,
+        type: 'assignment',
+        courseId: course.courseId
+      });
+    });
+    
+    // 강의 자료 처리
+    course.lectureNotes?.forEach(note => {
+      if (!note.date) return;
+      
+      // 날짜 추출 시도
+      const dateObj = extractDateFromString(note.date);
+      if (!dateObj) return;
+      
+      const dateKey = formatDateKey(dateObj);
+      
+      if (!calendarEvents[dateKey]) {
+        calendarEvents[dateKey] = [];
+      }
+      
+      calendarEvents[dateKey].push({
+        time: formatTime(dateObj),
+        title: `[자료] ${note.title}`,
+        location: course.courseName,
+        type: 'lecturenote',
+        courseId: course.courseId
+      });
+    });
+  });
+  
+  return calendarEvents;
+}
+
+// 문자열에서 날짜 추출 (다양한 형식 지원)
+function extractDateFromString(dateStr) {
+  if (!dateStr) return null;
+  
+  // 여러 가능한 날짜 형식 처리
+  const patterns = [
+    // ISO 형식 (2024-05-24)
+    /(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/,
+    
+    // 한국어 형식 (2024년 5월 24일)
+    /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/,
+    
+    // 숫자만 있는 형식 (20240524)
+    /(\d{4})(\d{2})(\d{2})/,
+    
+    // 영어 날짜 형식 (May 24, 2024)
+    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})[,\s]+(\d{4})/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = dateStr.match(pattern);
+    if (match) {
+      if (pattern.toString().includes('Jan|Feb')) {
+        // 영문 월 처리
+        const monthNames = {
+          'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+          'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+        };
+        const month = monthNames[match[1]];
+        const day = parseInt(match[2], 10);
+        const year = parseInt(match[3], 10);
+        return new Date(year, month, day);
+      } else {
+        // 숫자 형식 처리
+        const year = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1; // 월은 0-11
+        const day = parseInt(match[3], 10);
+        return new Date(year, month, day);
+      }
+    }
+  }
+  
+  // 시간 정보만 있거나 오늘/내일 같은 상대적 날짜 처리
+  if (dateStr.includes('오늘')) {
+    return new Date();
+  } else if (dateStr.includes('내일')) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  } else if (dateStr.includes('어제')) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+  }
+  
+  // 날짜 파싱 실패
+  return null;
+}
+
+// 날짜 키 형식 생성 (YYYY-MM-DD)
+function formatDateKey(date) {
+  if (!date || !(date instanceof Date) || isNaN(date)) return null;
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
+// 시간 형식 생성 (HH:MM)
+function formatTime(date) {
+  if (!date || !(date instanceof Date) || isNaN(date)) return '00:00';
+  
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  
+  return `${hours}:${minutes}`;
 }
 
 async function createHiddenWindow() {

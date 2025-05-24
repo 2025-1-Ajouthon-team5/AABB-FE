@@ -83,8 +83,6 @@ function addLog(message, type = 'info') {
   logContent.scrollTop = logContent.scrollHeight;
 }
 
-// content.js 파일의 scrollToLoadMore 함수를 다음과 같이 수정
-
 async function scrollToLoadMore() {
   addLog('스크롤하여 2025학년 1학기 과목들을 모두 로딩합니다...', 'info');
   
@@ -339,45 +337,47 @@ function sendCourseLinks(courseLinks) {
   });
 }
 
-async function initCrawler() {
-  console.log('🎯 Initializing course crawler...');
+// 메인 크롤링 함수
+async function startCrawling() {
+  console.log('🎯 Starting course crawler...');
   
   // Create log display
   createLogDisplay();
-  addLog('Ajou Calendar Extension initialized', 'info');
+  addLog('크롤링을 시작합니다...', 'info');
   
   // Check if current page is the course list page
   if (window.location.pathname.includes("/ultra/course")) {
-    addLog('Detected course list page', 'info');
-    
-    // Wait for DOM to fully load
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    addLog('강의 목록 페이지 확인됨', 'info');
     
     // Scroll to load all courses
-    await scrollToLoadMore();
+    const scrollResult = await scrollToLoadMore();
     
     // Extract course links
     const courseLinks = extractCourseLinks();
     
     if (courseLinks.length > 0) {
-      addLog(`Successfully extracted ${courseLinks.length} course links`, 'success');
+      addLog(`${courseLinks.length}개 강의 링크 추출 완료`, 'success');
       sendCourseLinks(courseLinks);
+      return { success: true, message: '크롤링이 시작되었습니다.' };
     } else {
-      addLog('No course links found. Retrying...', 'warning');
+      addLog('강의 링크를 찾을 수 없습니다. 다시 시도합니다...', 'warning');
       
-      // Retry after 5 seconds
-      setTimeout(async () => {
-        await scrollToLoadMore();
-        const retryLinks = extractCourseLinks();
-        if (retryLinks.length > 0) {
-          sendCourseLinks(retryLinks);
-        } else {
-          addLog('Failed to find any courses after retry', 'error');
-        }
-      }, 5000);
+      // Retry after 2 seconds
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      await scrollToLoadMore();
+      const retryLinks = extractCourseLinks();
+      if (retryLinks.length > 0) {
+        sendCourseLinks(retryLinks);
+        return { success: true, message: '재시도 후 크롤링이 시작되었습니다.' };
+      } else {
+        addLog('재시도 후에도 강의를 찾을 수 없습니다.', 'error');
+        return { success: false, message: '강의를 찾을 수 없습니다.' };
+      }
     }
   } else {
-    addLog('Not on course list page', 'info');
+    addLog('강의 목록 페이지가 아닙니다. 이클래스 메인 페이지에 접속해주세요.', 'error');
+    return { success: false, message: '강의 목록 페이지가 아닙니다.' };
   }
 }
 
@@ -386,17 +386,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "CRAWL_LOG") {
     addLog(message.message, message.logType || 'info');
     sendResponse({success: true});
+    return true;
   }
+  
+  // 팝업에서 크롤링 시작 메시지를 받으면 크롤링 시작
+  if (message.type === "START_CRAWLING") {
+    console.log('📢 Received START_CRAWLING message from popup');
+    
+    // 크롤링 시작
+    startCrawling().then(result => {
+      sendResponse(result);
+    }).catch(error => {
+      console.error('Crawling error:', error);
+      sendResponse({ success: false, message: error.message });
+    });
+    
+    return true; // 비동기 응답을 위해 true 반환
+  }
+  
   return true;
 });
 
-// DOM ready check
+// DOM ready check - 초기에는 자동으로 크롤링을 시작하지 않음
 if (document.readyState === 'loading') {
   console.log('⏳ DOM is still loading, waiting for DOMContentLoaded...');
-  document.addEventListener('DOMContentLoaded', initCrawler);
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ DOM is ready, but not starting crawler automatically');
+  });
 } else {
-  console.log('✅ DOM is ready, starting immediately');
-  initCrawler();
+  console.log('✅ DOM is ready, but not starting crawler automatically');
 }
 
 // SPA navigation detection
@@ -405,9 +423,6 @@ new MutationObserver(() => {
   if (location.href !== currentUrl) {
     currentUrl = location.href;
     console.log('🔄 SPA navigation detected, new URL:', currentUrl);
-    
-    // Wait and re-init crawler
-    setTimeout(initCrawler, 2000);
   }
 }).observe(document.body, { childList: true, subtree: true });
 
