@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -231,54 +230,84 @@
             margin-bottom: 8px;
             opacity: 0.5;
         }
+
+        /* FAB 버튼 */
+        .fab {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #1a73e8;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+            transition: all 0.2s ease;
+            z-index: 1000;
+        }
+
+        .fab:hover {
+            background: #1557b0;
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(26, 115, 232, 0.4);
+        }
+
+        .fab:active {
+            transform: scale(1.05);
+        }
+
+
     </style>
 </head>
-
 <body>
     <div class="calendar-container">
-        <!-- 헤더 -->
-        <div class="calendar-header">
-            <div class="month-navigation">
-                <button class="nav-btn" id="prevMonth">‹</button>
-                <div class="current-month" id="currentMonth">2025년 5월</div>
-                <div style="display: flex; gap: 4px;">
-                    <button class="nav-btn" id="nextMonth">›</button>
-                    <button class="nav-btn" id="refreshBtn" title="새로고침">⟳</button>
-                    <button class="nav-btn" id="addEventBtn" title="일정 추가">＋</button>
+                <!-- 헤더 -->
+                <div class="calendar-header">
+                    <div class="month-navigation">
+                        <button class="nav-btn" id="prevMonth">‹</button>
+                        <div class="current-month" id="currentMonth">2025년 5월</div>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="nav-btn" id="nextMonth">›</button>
+                            <button class="nav-btn" id="refreshBtn" title="새로고침">⟳</button>
+                        </div>
+                    </div>
+                    <div class="current-date" id="currentDate">오늘 · 5월 25일 일요일</div>
                 </div>
+
+                <!-- 요일 헤더 -->
+                <div class="weekdays">
+                    <div class="weekday sunday">일</div>
+                    <div class="weekday">월</div>
+                    <div class="weekday">화</div>
+                    <div class="weekday">수</div>
+                    <div class="weekday">목</div>
+                    <div class="weekday">금</div>
+                    <div class="weekday saturday">토</div>
+                </div>
+
+                <!-- 캘린더 그리드 -->
+                <div class="calendar-grid">
+                    <div class="calendar-days" id="calendarDays"></div>
+                </div>
+
+                <!-- 할 일 목록 -->
+                <div class="todo-section">
+                    <div class="todo-header">
+                        <div class="selected-date" id="selectedDate">5월 25일 일요일</div>
+                        <div class="event-count" id="eventCount">일정 2개</div>
+                    </div>
+                    <div class="todo-list" id="todoList">
+
+                    </div>
+                </div>
+
+                <!-- FAB 버튼 -->
+                <button class="fab" id="chatFab">💬</button>
             </div>
-            <div class="current-date" id="currentDate">오늘 · 5월 24일 금요일</div>
         </div>
-
-        <!-- 요일 헤더 -->
-        <div class="weekdays">
-            <div class="weekday sunday">일</div>
-            <div class="weekday">월</div>
-            <div class="weekday">화</div>
-            <div class="weekday">수</div>
-            <div class="weekday">목</div>
-            <div class="weekday">금</div>
-            <div class="weekday saturday">토</div>
-        </div>
-
-        <!-- 캘린더 그리드 -->
-        <div class="calendar-grid">
-            <div class="calendar-days" id="calendarDays"></div>
-        </div>
-
-        <!-- 할 일 목록 -->
-        <div class="todo-section">
-            <div class="todo-header">
-                <div class="selected-date" id="selectedDate">5월 24일 금요일</div>
-                <div class="event-count" id="eventCount">일정 2개</div>
-            </div>
-            <div class="todo-list" id="todoList">
-            </div>
-        </div>
-
-        <!-- FAB 버튼 -->
-        <button class="fab" id="chatFab">💬</button>
-    </div>
 
     <script src="popup.js"></script>
 </body>

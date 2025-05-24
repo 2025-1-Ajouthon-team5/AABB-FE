@@ -1,6 +1,6 @@
 // popup.js
-let currentDate = new Date("2024-05-01");
-let selectedDate = new Date("2024-05-24");
+let currentDate = new Date("2025-05-01");
+let selectedDate = new Date("2025-05-25");
 let dynamicEvents = {}; // IndexedDB에서 가져온 일정 저장용
 
 const monthNames = [
@@ -234,11 +234,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // 채팅 화면으로 전환
 function openChatScreen() {
     // 현재 일정 데이터를 storage에 저장
-    chrome.storage.local.set({ calendarEvents: sampleEvents }, () => {
+    chrome.storage.local.set({ calendarEvents: dynamicEvents }, () => {
         // background script를 통해 팝업 변경
         chrome.runtime.sendMessage({ type: 'SWITCH_TO_CHAT' }, (response) => {
             if (chrome.runtime.lastError) {
-                console.error('Message sending failed:', chrome.runtime.lastError);
+                console.log('🔴 lastError:', JSON.stringify(chrome.runtime.lastError, null, 2));
                 return;
             }
             if (response && response.success) {

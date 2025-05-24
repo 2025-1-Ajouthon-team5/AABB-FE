@@ -8,7 +8,7 @@ document.getElementById('login-form').addEventListener('submit', async function 
   statusEl.textContent = '로그인 중...';
 
   try {
-    const res = await fetch('http://172.21.46.69:8000/api/v1/auth/register', {
+    const res = await fetch('http://localhost:8000/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, password })
