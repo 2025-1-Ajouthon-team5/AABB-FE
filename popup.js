@@ -189,7 +189,7 @@ function updateTodoList() {
 
                 if (!event) return;
 
-                if (event.id) {
+                if (event.BB_id !== null && event.BB_id !== undefined) {
                     // 외부 일정이면 서버에도 삭제 요청
                     try {
                         await fetch('https://example.com/api/schedule/delete', {
@@ -255,7 +255,7 @@ async function handleAddEventClick() {
     if (title) {
         const time = prompt("시간 (예: 14:00)", "00:00");
         const type = prompt("유형 (예: 약속, 회의)", "");
-        await updateCalendarEvents({
+        await updateEvents({
             [dateStr]: [{ title, time, type }]
         });
     }
@@ -297,7 +297,7 @@ function getAuthToken() {
 // 크롤링 요청
 async function handleRefreshEventClick() {
     try {
-        const token = "733499666273481452"//await getAuthToken();
+        const token = await getAuthToken();
         if (!token) {
             console.error("❗ 인증 토큰이 없습니다");
             showStatusMessage('인증 토큰이 없습니다. 다시 로그인해 주세요.', 'error');
@@ -307,7 +307,7 @@ async function handleRefreshEventClick() {
         // 상태 메시지 표시
         showStatusMessage('일정을 불러오는 중...', 'info');
 
-        const res = await fetch(`http://172.21.46.69:8000/api/v1/crawler/crawl2/${token}`, {
+        const res = await fetch(`http://172.21.46.69:8000/api/v1/crawler/crawl/${token}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
