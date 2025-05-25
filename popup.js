@@ -244,12 +244,8 @@ async function handleRefreshEventClick() {
     const token = await getAuthToken(); // chrome.storage.local에서 토큰 가져오기 함수
 
     try {
-        const res = await fetch('http://172.21.46.69:8000/api/crawl', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
+        const res = await fetch('http://172.21.46.69:8000/api/crawl/${(token)}', {
+            method: 'GET'
         });
 
         if (!res.ok) {
