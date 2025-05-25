@@ -193,10 +193,71 @@
         .todo-item {
             background: white;
             border-radius: 8px;
-            padding: 12px 16px;
+            padding: 14px 16px; /* 패딩 약간 증가 */
             margin-bottom: 8px;
             border-left: 4px solid #34a853;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .course-name {
+            font-size: 12px;
+            color: #5f6368; /* 조금 흐린 색상 */
+            font-weight: 500;
+        }
+
+        .title-and-type {
+            display: flex;
+            align-items: center; /* 세로 중앙 정렬 */
+            gap: 8px;
+            margin-bottom: 8px; /* 타이틀과의 간격 */
+            padding-right: 32px; /* 삭제 버튼을 위한 공간 확보 */
+        }
+
+        .item-title {
+            font-size: 14px;
+            color: #202124;
+            font-weight: 500; /* 약간 굵게 */
+            margin-bottom: 8px; /* 마감일과의 간격 */
+            line-height: 1.3; /* 줄 간격 조정 */
+        }
+
+        .todo-time {
+            font-size: 12px;
+            color: #5f6368;
+            font-weight: 400;
+        }
+
+        .type-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border: 1px solid;
+            border-radius: 12px;
+            background: transparent;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0; /* 크기 고정 */
+        }
+
+
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            color: #5f6368;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+
+        .delete-btn:hover {
+            background: #f8f9fa;
+            color: #d93025;
         }
 
         .todo-time {

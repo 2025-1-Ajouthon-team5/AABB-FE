@@ -20,14 +20,12 @@ document.getElementById('login-form').addEventListener('submit', async function 
       statusEl.style.color = 'green';
       statusEl.textContent = '로그인 성공!';
 
-      const token = result.token;
-
-      // ✅ 토큰 저장
+      // 서버 응답 구조에 따라 조정
+      const token = result.token || result.access_token || result.authToken || 'fallback_token';
+      // 토큰 저장 후 페이지 이동
       chrome.storage.local.set({ authToken: token }, () => {
         console.log('🔐 토큰 저장됨:', token);
         window.location.href = 'popup.html';
-        // 팝업 창 변경
-        chrome.runtime.sendMessage({ type: 'LOGIN_SUCCESS' });
       });
     } else {
       statusEl.style.color = 'red';
