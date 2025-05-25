@@ -224,7 +224,7 @@ async function sendMessage() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                token: "364704406655874838", // 제공된 토큰 사용
+                token: getToken(), // 제공된 토큰 사용
                 message: userMessage,
             }),
         });
