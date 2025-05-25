@@ -171,7 +171,7 @@ function updateTodoList() {
                 <div class="todo-item" style="border-left: 4px solid ${color}">
                     <div class="title-and-type">
                         <span class="type-badge" style="border-color: ${color}; color: ${color};">${event.type || '일반'}</span>
-                        <span class="course-name">${event.course || '일반'}</span>
+                        <span class="course-name">${event.course || event.type || '일반'}</span>
                         
                     </div>
                     <div class="item-title">${event.title}</div>
@@ -219,13 +219,13 @@ async function updateEvents(newEvents, isExternal = false) {
     const tx = db.transaction("schedules", "readwrite");
     const store = tx.objectStore("schedules");
 
-    for (const [date, events] of Object.entries(newEvents)) {
+    for (const [due_date, events] of Object.entries(newEvents)) {
         for (const event of events) {
-            const id = `${date}_${event.title}_${event.time}`; // 로컬은 생성
+            const id = `${due_date}_${event.title}_${event.time}`; // 로컬은 생성
 
             const BB_id = isExternal ? event.id : null;
 
-            await store.put({ id, date, BB_id, ...event });
+            await store.put({ id, due_date, BB_id, ...event });
         }
     }
 
