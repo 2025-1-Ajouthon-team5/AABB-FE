@@ -12,8 +12,17 @@ const dayNames = ["일요일", "월요일", "화요일", "수요일", "목요일
 
 function initDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open("ScheduleDB", 3); // 버전을 3으로 증가
+        // 데이터베이스가 이미 열려있는지 확인
+        if (window.db) {
+            console.log("📊 이미 열린 DB 연결 사용");
+            return resolve(window.db);
+        }
+        
+        console.log("📊 IndexedDB 연결 시도 중...");
+        const request = indexedDB.open("ScheduleDB", 3);
+        
         request.onupgradeneeded = (event) => {
+            console.log("📊 IndexedDB 스키마 업그레이드 중...");
             const db = event.target.result;
             
             // 기존 스토어가 있으면 삭제하고 새로 생성
@@ -25,13 +34,35 @@ function initDB() {
             store.createIndex("due_date", "due_date", { unique: false });
             console.log("📊 IndexedDB 스토어 생성 완료");
         };
-        request.onsuccess = () => {
+        
+        request.onsuccess = (event) => {
+            const db = event.target.result;
             console.log("📊 IndexedDB 연결 성공");
-            resolve(request.result);
+            
+            // 디버깅 정보: 모든 DB 이름과 객체 스토어 출력
+            console.log("📊 현재 DB 이름:", db.name);
+            console.log("📊 현재 객체 스토어:", Array.from(db.objectStoreNames));
+            
+            // 전역에 DB 인스턴스 저장
+            window.db = db;
+            
+            // DB 연결 이벤트 핸들러
+            db.onversionchange = () => {
+                db.close();
+                alert("데이터베이스가 업데이트되었습니다. 페이지를 새로고침해주세요.");
+            };
+            
+            resolve(db);
         };
-        request.onerror = () => {
-            console.error("📊 IndexedDB 오류:", request.error);
-            reject(request.error);
+        
+        request.onerror = (event) => {
+            console.error("📊 IndexedDB 오류:", event.target.error);
+            reject(event.target.error);
+        };
+        
+        request.onblocked = (event) => {
+            console.warn("📊 IndexedDB 열기가 차단됨:", event);
+            alert("데이터베이스 연결이 차단되었습니다. 다른 탭을 닫고 다시 시도해주세요.");
         };
     });
 }
@@ -138,11 +169,12 @@ function updateTodoList() {
             
             return `
                 <div class="todo-item" style="border-left: 4px solid ${color}">
-                    <div class="course-name">${event.course || '일반'}</div>
                     <div class="title-and-type">
-                        ${event.title}
                         <span class="type-badge" style="border-color: ${color}; color: ${color};">${event.type || '일반'}</span>
+                        <span class="course-name">${event.course || '일반'}</span>
+                        
                     </div>
+                    <div class="item-title">${event.title}</div>
                     <div class="todo-time">마감: ${event.due_date}</div>
                     <button class="delete-btn" data-id="${event.id}">🗑</button>
                 </div>
@@ -264,58 +296,106 @@ function getAuthToken() {
 
 // 크롤링 요청
 async function handleRefreshEventClick() {
-    const token = await getAuthToken(); // chrome.storage.local에서 토큰 가져오기 함수
-
     try {
-        const res = await fetch(`http://172.21.46.69:8000/api/crawl2/${token}`, {
+        const token = "733499666273481452"//await getAuthToken();
+        if (!token) {
+            console.error("❗ 인증 토큰이 없습니다");
+            showStatusMessage('인증 토큰이 없습니다. 다시 로그인해 주세요.', 'error');
+            return;
+        }
+
+        // 상태 메시지 표시
+        showStatusMessage('일정을 불러오는 중...', 'info');
+
+        const res = await fetch(`http://172.21.46.69:8000/api/v1/crawler/crawl2/${token}`, {
             method: 'GET',
-            // headers: {
-            //     'Authorization': `Bearer ${token}`
-            // }
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
         });
 
         if (!res.ok) {
             console.error(`서버 에러: ${res.status} ${res.statusText}`);
+            showStatusMessage(`서버 오류: ${res.status}`, 'error');
             return;
         }
 
         const taskList = await res.json();
         console.log('📥 서버에서 받은 데이터:', taskList);
+        
+        if (!Array.isArray(taskList) || taskList.length === 0) {
+            console.log("⚠️ 서버에서 받은 데이터가 없거나 배열이 아닙니다:", taskList);
+            showStatusMessage('불러올 일정이 없습니다.', 'warning');
+            return;
+        }
 
-        // 🔽 IndexedDB에 저장
-        const db = await initDB();
+        // IndexedDB에 저장
+        const db = await initDB().catch(err => {
+            console.error("❗ DB 초기화 오류:", err);
+            throw err;
+        });
+        
         const tx = db.transaction('schedules', 'readwrite');
         const store = tx.objectStore('schedules');
         
-        taskList.forEach(({ id, title, due_date, type, course }) => {
-            // due_date가 null이면 저장하지 않음
-            if (!due_date) {
-                console.log(`⚠️ due_date가 null인 항목 건너뜀: ${title} (id: ${id})`);
-                return;
+        // IndexedDB 저장 오류 감지
+        tx.onerror = (event) => {
+            console.error("❗ 트랜잭션 오류:", event.target.error);
+            showStatusMessage('데이터 저장 중 오류가 발생했습니다.', 'error');
+        };
+        
+        let savedCount = 0;
+        const promises = taskList.map(({ id, title, due_date, type, course }) => {
+            if (!id || !due_date) {
+                console.log(`⚠️ 필수 필드가 누락된 항목 건너뜀: ${title || '제목 없음'}`);
+                return Promise.resolve();
             }
 
-            // due_date에서 시간 부분 제거 (날짜만 추출)
             // "2025-03-24T23:59:00" → "2025-03-24"
-            const formattedDate = due_date.split('T')[0]; 
+            const formattedDate = due_date.split('T')[0];
             
-            // 정확한 5개 속성만 저장
-            store.put({
-                id,
-                title,
-                due_date: formattedDate, // 날짜만 저장
-                type,
-                course
+            return new Promise((resolve) => {
+                const request = store.put({
+                    id: String(id), // 문자열로 변환하여 일관성 유지
+                    title: title || '(제목 없음)',
+                    due_date: formattedDate,
+                    type: type || '일반',
+                    course: course || '일반'
+                });
+                
+                request.onsuccess = () => {
+                    savedCount++;
+                    resolve();
+                };
+                
+                request.onerror = (e) => {
+                    console.error(`❗ 항목 저장 오류 (${id}):`, e.target.error);
+                    resolve(); // 오류가 있어도 진행
+                };
             });
         });
         
-        await tx.done;
-
+        // 모든 저장 작업 완료 대기
+        await Promise.all(promises);
+        
+        // 트랜잭션 완료 대기
+        await new Promise((resolve) => {
+            tx.oncomplete = () => {
+                console.log(`✅ ${savedCount}개 일정 저장 완료`);
+                resolve();
+            };
+            tx.onerror = (e) => {
+                console.error("❗ 트랜잭션 오류:", e.target.error);
+                resolve();
+            };
+        });
+        
         // 변경된 일정 다시 렌더링
         await renderCalendar();
-
-        showStatusMessage(`${taskList.length}개의 일정을 성공적으로 불러왔습니다.`, 'success');
+        
+        showStatusMessage(`${savedCount}개의 일정을 성공적으로 불러왔습니다.`, 'success');
         console.log("✅ 크롤링 일정 저장 완료");
-
+        
     } catch (err) {
         console.error("❗ 크롤링 요청 중 에러:", err);
         showStatusMessage('일정을 불러오는 중 오류가 발생했습니다.', 'error');
