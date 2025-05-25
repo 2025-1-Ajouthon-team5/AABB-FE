@@ -115,6 +115,7 @@ function getScheduleData() {
 }
 
 // AI 응답 생성 함수
+/*
 async function generateAIResponse(userMessage) {
     const lowerMessage = userMessage.toLowerCase();
     const scheduleData = await getScheduleData();
@@ -194,40 +195,57 @@ async function generateAIResponse(userMessage) {
     
     return responses[Math.floor(Math.random() * responses.length)];
 }
+*/
 
 // 메시지 전송 함수
 async function sendMessage() {
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendBtn');
-    const message = chatInput.value.trim();
+    const userMessage = chatInput.value.trim();
     
-    if (!message) return;
+    if (!userMessage) return;
     
     // 버튼 비활성화
     sendBtn.disabled = true;
     chatInput.disabled = true;
     
     // 사용자 메시지 추가
-    addMessage(message, true);
+    addMessage(userMessage, true);
     chatInput.value = '';
     
     // 타이핑 인디케이터 표시
     showTypingIndicator();
     
     try {
-        // AI 응답 생성 (실제 지연 시뮬레이션)
-        const delay = Math.random() * 1000 + 500; // 0.5-1.5초 랜덤 지연
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
-        const aiResponse = await generateAIResponse(message);
-        
+        // API 호출
+        const response = await fetch('http://172.21.46.69:8000/api/v1/chatbot/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                token: "364704406655874838", // 제공된 토큰 사용
+                message: userMessage,
+            }),
+        });
+
+        if (!response.ok) {
+            // API 응답이 실패한 경우 에러 처리
+            const errorData = await response.json().catch(() => ({ response: 'API 응답 처리 중 오류가 발생했습니다.' })); // JSON 파싱 실패 시 기본 에러 메시지
+            throw new Error(errorData.response || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const aiResponse = data.response; // API 응답에서 실제 메시지 추출
+
         // 타이핑 인디케이터 제거 후 응답 추가
         hideTypingIndicator();
         addMessage(aiResponse, false);
         
     } catch (error) {
+        console.error('API Error:', error);
         hideTypingIndicator();
-        addMessage('죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요. 😓', false);
+        addMessage(`죄송합니다. 답변을 가져오는 중 오류가 발생했습니다: ${error.message} 😓`, false);
     } finally {
         // 버튼 재활성화
         sendBtn.disabled = false;
